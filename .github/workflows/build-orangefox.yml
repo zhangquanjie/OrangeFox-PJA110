@@ -19,6 +19,7 @@ jobs:
       ALLOW_MISSING_DEPENDENCIES: "true"
       USE_CCACHE: "1"
       CCACHE_EXEC: /usr/bin/ccache
+      GOMAXPROCS: "2"
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +28,14 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
           sudo apt-get clean
           df -h /
+
+      - name: Add swap for Soong
+        run: |
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
 
       - name: Install build dependencies and repo
         run: |
@@ -59,7 +68,7 @@ jobs:
         run: |
           source build/envsetup.sh
           lunch twrp_pja110-bp2a-eng
-          mka recoveryimage -j4
+          mka recoveryimage -j2
 
       - name: Validate and package image
         run: |
@@ -77,4 +86,3 @@ jobs:
             OrangeFox-R11.3_1-pja110-crDroid-Android17-20261118.sha256
           if-no-files-found: error
           retention-days: 14
-
