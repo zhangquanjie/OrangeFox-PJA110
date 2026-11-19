@@ -31,10 +31,11 @@ jobs:
 
       - name: Add swap for Soong
         run: |
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          sudo fallocate -l 8G /mnt/orangefox.swap
+          sudo chmod 600 /mnt/orangefox.swap
+          sudo mkswap /mnt/orangefox.swap
+          sudo swapon /mnt/orangefox.swap
+          swapon --show
           free -h
 
       - name: Install build dependencies and repo
