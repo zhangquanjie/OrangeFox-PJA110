@@ -20,6 +20,7 @@ jobs:
       USE_CCACHE: "1"
       CCACHE_EXEC: /usr/bin/ccache
       GOMAXPROCS: "2"
+      OF_MANUAL_ROOT_VENDOR_ERROR_FIX: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -69,7 +70,7 @@ jobs:
         run: |
           source build/envsetup.sh
           lunch twrp_pja110-bp2a-eng
-          mka recoveryimage -j4
+          mka recoveryimage -j2
 
       - name: Validate and package image
         run: |
