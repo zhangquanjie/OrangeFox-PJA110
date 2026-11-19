@@ -69,7 +69,7 @@ jobs:
         run: |
           source build/envsetup.sh
           lunch twrp_pja110-bp2a-eng
-          mka recoveryimage -j2
+          mka recoveryimage -j4
 
       - name: Validate and package image
         run: |
