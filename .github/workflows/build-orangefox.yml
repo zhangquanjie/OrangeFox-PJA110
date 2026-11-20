@@ -77,8 +77,16 @@ jobs:
           image="${{ runner.temp }}/orangefox/out/target/product/pja110/recovery.img"
           test -f "$image"
           test "$(stat -c %s "$image")" -le 104857600
-          cp "$image" OrangeFox-R11.3_1-pja110-crDroid-Android17-20261118.img
-          sha256sum OrangeFox-R11.3_1-pja110-crDroid-Android17-20261118.img > OrangeFox-R11.3_1-pja110-crDroid-Android17-20261118.sha256
+          output=OrangeFox-R11.3_1-pja110-crDroid-Android17-20261118.img
+          cp "$image" "$output"
+          base64 -d prebuilt/recovery-vbmeta.img.b64 > recovery-vbmeta.img
+          python "${{ runner.temp }}/orangefox/external/avb/avbtool.py" append_vbmeta_image \
+            --image "$output" \
+            --vbmeta_image recovery-vbmeta.img \
+            --partition_size 104857600
+          test "$(stat -c %s "$output")" -eq 104857600
+          python "${{ runner.temp }}/orangefox/external/avb/avbtool.py" info_image --image "$output"
+          sha256sum "$output" > OrangeFox-R11.3_1-pja110-crDroid-Android17-20261118.sha256
 
       - uses: actions/upload-artifact@v4
         with:
