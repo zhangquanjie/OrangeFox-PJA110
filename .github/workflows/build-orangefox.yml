@@ -79,6 +79,9 @@ jobs:
           test "$(stat -c %s "$image")" -le 104857600
           output=OrangeFox-R11.3_1-pja110-crDroid-Android17-20261118.img
           cp "$image" "$output"
+          python tools/patch_boot_header.py "$output" \
+            --os-version 17.0.0 \
+            --security-patch 2026-11
           base64 -d prebuilt/recovery-vbmeta.img.b64 > recovery-vbmeta.img
           python "${{ runner.temp }}/orangefox/external/avb/avbtool.py" append_vbmeta_image \
             --image "$output" \
