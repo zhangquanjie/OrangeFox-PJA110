@@ -1,0 +1,109 @@
+name: Build OrangeFox Android 17 port for PJA110
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      FOX_BUILD_DEVICE: pja110
+      ALLOW_MISSING_DEPENDENCIES: "true"
+      USE_CCACHE: "1"
+      CCACHE_EXEC: /usr/bin/ccache
+      GOMAXPROCS: "2"
+      OF_MANUAL_ROOT_VENDOR_ERROR_FIX: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo apt-get clean
+          df -h /
+
+      - name: Add swap for Soong
+        run: |
+          sudo fallocate -l 8G /mnt/orangefox.swap
+          sudo chmod 600 /mnt/orangefox.swap
+          sudo mkswap /mnt/orangefox.swap
+          sudo swapon /mnt/orangefox.swap
+          swapon --show
+          free -h
+
+      - name: Install build dependencies and repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git git-lfs \
+            gnupg gperf imagemagick lib32readline-dev lib32z1-dev libelf-dev liblz4-tool libsdl1.2-dev \
+            libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev
+          mkdir -p "$HOME/bin"
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o "$HOME/bin/repo"
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Initialize Android 17 hybrid source
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir orangefox
+          cd orangefox
+          "$HOME/bin/repo" init --depth=1 -u https://gitlab.com/OrangeFox/Manifest.git -b fox_16.0
+          sed -i 's/android-16\.0\.0_r1/android-17.0.0_r1/g' .repo/manifests/default.xml
+          mkdir -p .repo/local_manifests
+          cp "${{ github.workspace }}/manifests/android17-overrides.xml" .repo/local_manifests/pja110-android17.xml
+          "$HOME/bin/repo" sync -c --force-sync --no-clone-bundle --no-tags -j4
+          "$HOME/bin/repo" manifest -r -o android17-pinned-manifest.xml
+          df -h /
+
+      - name: Verify Android 17 source baseline
+        working-directory: ${{ runner.temp }}/orangefox
+        run: |
+          test "$(git -C bionic describe --tags --exact-match)" = android-17.0.0_r1
+          test "$(git -C system/core describe --tags --exact-match)" = android-17.0.0_r1
+          git -C bootable/recovery branch --show-current
+          git -C vendor/recovery branch --show-current
+
+      - name: Add PJA110 device tree
+        run: |
+          mkdir -p "${{ runner.temp }}/orangefox/device/oneplus/pja110"
+          rsync -a --delete --exclude .git --exclude .github --exclude artifacts ./ \
+            "${{ runner.temp }}/orangefox/device/oneplus/pja110/"
+
+      - name: Build Android 17 recovery image
+        working-directory: ${{ runner.temp }}/orangefox
+        shell: bash
+        run: |
+          source build/envsetup.sh
+          lunch twrp_pja110-bp2a-eng
+          mka recoveryimage -j2
+
+      - name: Validate and package image
+        run: |
+          image="${{ runner.temp }}/orangefox/out/target/product/pja110/recovery.img"
+          test -f "$image"
+          output=OrangeFox-R11.3_1-pja110-AOSP17-port-20261118.img
+          cp "$image" "$output"
+          python tools/patch_boot_header.py "$output" \
+            --os-version 17.0.0 \
+            --security-patch 2026-11
+          base64 -d prebuilt/recovery-vbmeta.img.b64 > recovery-vbmeta.img
+          python "${{ runner.temp }}/orangefox/external/avb/avbtool.py" append_vbmeta_image \
+            --image "$output" \
+            --vbmeta_image recovery-vbmeta.img \
+            --partition_size 104857600
+          test "$(stat -c %s "$output")" -eq 104857600
+          python "${{ runner.temp }}/orangefox/external/avb/avbtool.py" info_image --image "$output"
+          sha256sum "$output" > OrangeFox-R11.3_1-pja110-AOSP17-port-20261118.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OrangeFox-R11.3_1-pja110-AOSP17-port-20261118
+          path: |
+            OrangeFox-R11.3_1-pja110-AOSP17-port-20261118.img
+            OrangeFox-R11.3_1-pja110-AOSP17-port-20261118.sha256
+          if-no-files-found: error
+          retention-days: 14
