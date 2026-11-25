@@ -76,7 +76,9 @@ jobs:
         run: |
           image="${{ runner.temp }}/orangefox/out/target/product/pja110/recovery.img"
           test -f "$image"
-          test "$(stat -c %s "$image")" -le 104857600
+          # The bootloader's recovery load buffer is smaller than the physical
+          # partition. Stay below the largest image already proven to boot.
+          test "$(stat -c %s "$image")" -lt 40980480
           output=OrangeFox-R11.3_1-pja110-crDroid-Android17-20261118.img
           cp "$image" "$output"
           python tools/patch_boot_header.py "$output" \
