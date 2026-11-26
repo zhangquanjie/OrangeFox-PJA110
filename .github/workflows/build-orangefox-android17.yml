@@ -52,7 +52,10 @@ jobs:
           mkdir orangefox
           cd orangefox
           "$HOME/bin/repo" init --depth=1 -u https://gitlab.com/OrangeFox/Manifest.git -b fox_16.0
-          sed -i 's/android-16\.0\.0_r1/android-17.0.0_r1/g' .repo/manifests/default.xml
+          curl -fsSL \
+            'https://android.googlesource.com/platform/manifest/+/refs/tags/android-17.0.0_r1/default.xml?format=TEXT' \
+            | base64 -d > .repo/manifests/default.xml
+          sed -i '/<\/manifest>/i\  <include name="twrp-default.xml"/>' .repo/manifests/default.xml
           mkdir -p .repo/local_manifests
           cp "${{ github.workspace }}/manifests/android17-overrides.xml" .repo/local_manifests/pja110-android17.xml
           "$HOME/bin/repo" sync -c --force-sync --no-clone-bundle --no-tags -j4

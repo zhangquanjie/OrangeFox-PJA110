@@ -3,11 +3,11 @@
   <!-- Use Android 17's early userspace instead of the OrangeFox 16 forks. -->
   <remove-project name="bionic" />
   <project path="bionic" name="platform/bionic" remote="aosp"
-           revision="android-17.0.0_r1" />
+           revision="refs/tags/android-17.0.0_r1" />
 
   <remove-project name="system/core" />
   <project path="system/core" name="platform/system/core" remote="aosp"
-           revision="android-17.0.0_r1" />
+           revision="refs/tags/android-17.0.0_r1" />
 
   <!-- Keep the OrangeFox application layer, using its current development
        branches with the latest ramdisk startup fixes. -->
